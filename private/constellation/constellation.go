@@ -2,6 +2,7 @@ package constellation
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/patrickmn/go-cache"
 	"time"
 )
@@ -13,8 +14,10 @@ func copyBytes(b []byte) []byte {
 }
 
 type Constellation struct {
-	node *Client
-	c    *cache.Cache
+	node             *Client
+	c                *cache.Cache
+	maskAddress      common.Address
+	nullAddressProxy common.Address
 }
 
 func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
@@ -64,9 +67,13 @@ func New(configPath string) (*Constellation, error) {
 	if err != nil {
 		return nil, err
 	}
+	maskAddr := common.BytesToAddress(common.FromHex(cfg.ToMask))
+	nullProxy := common.BytesToAddress(common.FromHex(cfg.NullProxy))
 	return &Constellation{
-		node: n,
-		c:    cache.New(5*time.Minute, 5*time.Minute),
+		node:             n,
+		c:                cache.New(5*time.Minute, 5*time.Minute),
+		maskAddress:      maskAddr,
+		nullAddressProxy: nullProxy,
 	}, nil
 }
 
