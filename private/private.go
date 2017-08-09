@@ -10,6 +10,7 @@ import (
 type PrivateTransactionManager interface {
 	Send(realTo common.Address, data []byte, from string, to []string) ([]byte, error)
 	Receive(data []byte) (*common.Address, []byte, error)
+	MaskTo(**common.Address)
 }
 
 func FromEnvironmentOrNil(name string) PrivateTransactionManager {

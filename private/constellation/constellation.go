@@ -65,6 +65,10 @@ func (g *Constellation) Receive(data []byte) (*common.Address, []byte, error) {
 	return realTo, realData, nil
 }
 
+func (g *Constellation) MaskTo(real **common.Address) {
+	*real = &g.maskAddress
+}
+
 func New(configPath string) (*Constellation, error) {
 	cfg, err := LoadConfig(configPath)
 	if err != nil {
