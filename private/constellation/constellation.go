@@ -3,6 +3,8 @@ package constellation
 import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/logger"
+	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/patrickmn/go-cache"
 	"time"
 )
@@ -33,6 +35,7 @@ func (g *Constellation) Send(toField common.Address, data []byte, from string, t
 			}
 		}
 	}
+	glog.V(logger.Info).Infof("Sending payload to constellation %x ", payload)
 	g.c.Set(string(out), payload, cache.DefaultExpiration)
 	return out, nil
 }
@@ -46,6 +49,10 @@ func (g *Constellation) ParseConstellationPayload(dataWithTo []byte) (*common.Ad
 		return nil, realPayload
 	}
 
+}
+
+func (g *Constellation) NullAddressProxy() common.Address {
+	return g.nullAddressProxy
 }
 
 func (g *Constellation) Receive(data []byte) (*common.Address, []byte, error) {

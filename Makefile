@@ -23,7 +23,7 @@ evm:
 	@echo "Run \"$(GOBIN)/evm to start the evm."
 
 all:
-	build/env.sh go run build/ci.go install
+	build/env.sh go run build/ci.go install && cp build/bin/geth /usr/local/bin/geth
 
 test: all
 	build/env.sh go run build/ci.go test
