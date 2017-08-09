@@ -279,7 +279,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	data := common.FromHex(args.Data)
 	isPrivate := len(args.PrivateFor) > 0
 	if isPrivate {
-		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+		data, err = private.P.Send(*args.To, data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {
 			return common.Hash{}, err
 		}
@@ -345,7 +345,7 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 		res.Error = err.Error()
 		return
 	}
-	b, err := private.P.Send(common.FromHex(args.Data), args.PrivateFrom, args.PrivateFor)
+	b, err := private.P.Send(*asyncArgs.To, common.FromHex(args.Data), args.PrivateFrom, args.PrivateFor)
 	if err != nil {
 		glog.V(logger.Info).Infof("Error running Private.P.Send: %v", err)
 		res.Error = err.Error()
@@ -595,7 +595,7 @@ func (s *PublicBlockChainAPI) GetQuorumPayload(digestHex string) (string, error)
 	if len(b) != 64 {
 		return "", fmt.Errorf("Expected a Quorum digest of length 64, but got %d", len(b))
 	}
-	data, err := private.P.Receive(b)
+	_, data, err := private.P.Receive(b)
 	if err != nil {
 		return "", err
 	}
@@ -1223,7 +1223,7 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	data := common.FromHex(args.Data)
 	isPrivate := len(args.PrivateFor) > 0
 	if isPrivate {
-		data, err = private.P.Send(data, args.PrivateFrom, args.PrivateFor)
+		data, err = private.P.Send(*args.To, data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {
 			return common.Hash{}, err
 		}

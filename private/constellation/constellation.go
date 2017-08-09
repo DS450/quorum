@@ -20,38 +20,49 @@ type Constellation struct {
 	nullAddressProxy common.Address
 }
 
-func (g *Constellation) Send(data []byte, from string, to []string) (out []byte, err error) {
+func (g *Constellation) Send(toField common.Address, data []byte, from string, to []string) (out []byte, err error) {
+	payload := append(toField.Bytes(), data...)
 	if len(data) > 0 {
 		if len(to) == 0 {
-			out = copyBytes(data)
+			out = copyBytes(payload)
 		} else {
 			var err error
-			out, err = g.node.SendPayload(data, from, to)
+			out, err = g.node.SendPayload(payload, from, to)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
-	g.c.Set(string(out), data, cache.DefaultExpiration)
+	g.c.Set(string(out), payload, cache.DefaultExpiration)
 	return out, nil
 }
 
-func (g *Constellation) Receive(data []byte) ([]byte, error) {
-	if len(data) == 0 {
-		return data, nil
+func (g *Constellation) ParseConstellationPayload(dataWithTo []byte) (*common.Address, []byte) {
+	realTo := common.BytesToAddress(dataWithTo[:20])
+	realPayload := dataWithTo[20:]
+	if realTo != g.nullAddressProxy {
+		return &realTo, realPayload
+	} else {
+		return nil, realPayload
+	}
+
+}
+
+func (g *Constellation) Receive(data []byte) (*common.Address, []byte, error) {
+	dataStr := string(data)
+	x, found := g.c.Get(dataStr)
+	if found {
+		realTo, dat := g.ParseConstellationPayload(x.([]byte))
+		return realTo, dat, nil
 	}
 	// Ignore this error since not being a recipient of
 	// a payload isn't an error.
 	// TODO: Return an error if it's anything OTHER than
 	// 'you are not a recipient.'
-	dataStr := string(data)
-	x, found := g.c.Get(dataStr)
-	if found {
-		return x.([]byte), nil
-	}
-	pl, _ := g.node.ReceivePayload(data)
-	g.c.Set(dataStr, pl, cache.DefaultExpiration)
-	return pl, nil
+	dataWithTo, _ := g.node.ReceivePayload(data)
+	realTo, realData := g.ParseConstellationPayload(dataWithTo)
+	g.c.Set(dataStr, dataWithTo, cache.DefaultExpiration)
+	return realTo, realData, nil
 }
 
 func New(configPath string) (*Constellation, error) {
