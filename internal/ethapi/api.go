@@ -279,6 +279,7 @@ func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs
 	data := common.FromHex(args.Data)
 	isPrivate := len(args.PrivateFor) > 0
 	if isPrivate {
+		glog.V(logger.Info).Infof("Received PrivateTransaction with data %x ", data)
 		data, err = private.P.Send(*args.To, data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {
 			return common.Hash{}, err
@@ -1097,6 +1098,12 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(txHash common.Hash) (ma
 		return nil, nil
 	}
 
+	glog.V(logger.Debug).Infof("GTR -- REACHING OUT TO CONSTELLATION")
+	realTo, realData, err := private.P.Receive(tx.Data())
+	if err != nil {
+		glog.V(logger.Debug).Infof("GTR -- Constellation responded -- realTo %x realData %x", realTo, realData)
+	}
+
 	txBlock, blockIndex, index, err := getTransactionBlockData(s.b.ChainDb(), txHash)
 	if err != nil {
 		glog.V(logger.Debug).Infof("%v\n", err)
@@ -1223,11 +1230,14 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	data := common.FromHex(args.Data)
 	isPrivate := len(args.PrivateFor) > 0
 	if isPrivate {
+
 		data, err = private.P.Send(*args.To, data, args.PrivateFrom, args.PrivateFor)
+		private.P.MaskTo(&args.To)
 		if err != nil {
 			return common.Hash{}, err
 		}
 	}
+
 	if args.To == nil {
 		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), nil, data)
 	} else {
