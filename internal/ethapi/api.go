@@ -1100,7 +1100,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(txHash common.Hash) (ma
 
 	glog.V(logger.Debug).Infof("GTR -- REACHING OUT TO CONSTELLATION")
 	realTo, realData, err := private.P.Receive(tx.Data())
-	if err != nil {
+	if err != nil && realTo != nil {
 		glog.V(logger.Debug).Infof("GTR -- Constellation responded -- realTo %x realData %x", realTo, realData)
 	}
 
