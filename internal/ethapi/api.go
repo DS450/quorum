@@ -1105,7 +1105,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(txHash common.Hash) (ma
 		}
 	}
 	if receipt == nil {
-		// failed to find private receipt, returning public receipt
+		glog.V(logger.Debug).Infof("found a pulic transaction -- %s", txHash.Hex())
 		receipt = core.GetPublicReceipt(s.b.ChainDb(), txHash)
 	}
 
