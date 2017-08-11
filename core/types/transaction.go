@@ -589,3 +589,23 @@ func (t *TransactionsByPriceAndNonce) Shift() {
 func (t *TransactionsByPriceAndNonce) Pop() {
 	heap.Pop(&t.heads)
 }
+
+//type UnMaskedTransaction struct {
+//	from     common.Address
+//	to       *common.Address
+//	gasPrice *big.Int
+//	gas      *big.Int
+//	value    *big.Int
+//	nonce    uint64
+//	data     []byte
+//	hash     *common.Hash
+//}
+//
+//func (tx *UnMaskedTransaction) Data() []byte       { return common.CopyBytes(tx.data) }
+//func (tx *UnMaskedTransaction) Gas() *big.Int      { return new(big.Int).Set(tx.gas) }
+//func (tx *UnMaskedTransaction) GasPrice() *big.Int { return new(big.Int).Set(tx.gasPrice) }
+//func (tx *UnMaskedTransaction) Value() *big.Int    { return new(big.Int).Set(tx.value) }
+//func (tx *UnMaskedTransaction) Nonce() uint64      { return tx.nonce }
+//func (tx *UnMaskedTransaction) CheckNonce() bool   { return true }
+//func (tx *UnMaskedTransaction) Hash() common.Hash  { return tx.hash }
+//func (tx *UnMaskedTransaction) From() bool         { return from }

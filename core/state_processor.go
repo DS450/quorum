@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/private"
 )
 
 var (
@@ -67,9 +68,19 @@ func (p *StateProcessor) Process(block *types.Block, publicState, privateState *
 	)
 
 	for i, tx := range block.Transactions() {
+
 		publicState.StartRecord(tx.Hash(), block.Hash(), i)
+		// -- call constallation
+		// make frankenstien privateTransaction ptx == the original web3 tx
+		// we need to recreate the original transaction object at this point.
+
+		// CALL CONSTELLATION FOR HASH
 		privateState.StartRecord(tx.Hash(), block.Hash(), i)
 
+		// not ask if public or private during anything called in ApplyTransaction, then
+		// -- we don't need to worry about constellation
+		// -- we can make the public on here
+		// --
 		publicReceipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, gp, publicState, privateState, header, tx, totalUsedGas, cfg)
 		if err != nil {
 			return nil, nil, nil, totalUsedGas, err
@@ -124,10 +135,11 @@ func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicSt
 
 	var privateReceipt *types.Receipt
 	if tx.IsPrivate() {
+		recipient, _, _ := private.P.Receive(tx.Data())
 		privateReceipt = types.NewReceipt(privateState.IntermediateRoot().Bytes(), usedGas)
 		privateReceipt.TxHash = tx.Hash()
 		privateReceipt.GasUsed = new(big.Int).Set(gas)
-		if MessageCreatesContract(tx) {
+		if recipient == nil {
 			from, _ := tx.From()
 			privateReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
 		}

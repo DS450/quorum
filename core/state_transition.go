@@ -230,15 +230,18 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 	var (
 		msg              = self.msg
 		sender, _        = self.from() // err checked in preCheck
-		contractCreation = MessageCreatesContract(msg)
 		vmenv            = self.env
 		publicState      = self.state
 		data             []byte
 		isPrivate        bool
+		recipient        = msg.To()
+		contractCreation = recipient == nil
 	)
 	if msg, ok := msg.(PrivateMessage); ok && msg.IsPrivate() {
 		isPrivate = true
-		_, data, err = private.P.Receive(self.data)
+		var err error
+		recipient, data, err = private.P.Receive(self.data)
+		contractCreation = recipient == nil
 		// Increment the public account nonce if:
 		// 1. Tx is private and *not* a participant of the group and either call or create
 		// 2. Tx is private we are part of the group and is a call
@@ -279,7 +282,7 @@ func (self *StateTransition) TransitionDb() (ret []byte, requiredGas, usedGas *b
 			publicState.SetNonce(sender.Address(), publicState.GetNonce(sender.Address())+1)
 		}
 
-		ret, err = vmenv.Call(sender, *self.msg.To(), data, self.gas, self.gasPrice, self.value)
+		ret, err = vmenv.Call(sender, *recipient, data, self.gas, self.gasPrice, self.value)
 		if err != nil {
 			glog.V(logger.Core).Infoln("VM call err:", err)
 		}

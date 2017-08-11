@@ -260,44 +260,44 @@ func (s *PrivateAccountAPI) LockAccount(addr common.Address) bool {
 // SendTransaction will create a transaction from the given arguments and
 // tries to sign it with the key associated with args.To. If the given passwd isn't
 // able to decrypt the key it fails.
-func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
-	var err error
-	args, err = prepareSendTxArgs(ctx, args, s.b)
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	if args.Nonce == nil {
-		nonce, err := s.b.GetPoolNonce(ctx, args.From)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		args.Nonce = rpc.NewHexNumber(nonce)
-	}
-
-	var tx *types.Transaction
-	data := common.FromHex(args.Data)
-	isPrivate := len(args.PrivateFor) > 0
-	if isPrivate {
-		glog.V(logger.Info).Infof("Received PrivateTransaction with data %x ", data)
-		data, err = private.P.Send(*args.To, data, args.PrivateFrom, args.PrivateFor)
-		if err != nil {
-			return common.Hash{}, err
-		}
-	}
-	if args.To == nil {
-		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), nil, data)
-	} else {
-		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), nil, data)
-	}
-
-	signature, err := s.am.SignWithPassphrase(args.From, passwd, tx.SigHash().Bytes())
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return submitTransaction(ctx, s.b, tx, signature, isPrivate)
-}
+//func (s *PrivateAccountAPI) SendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
+//	var err error
+//	args, err = prepareSendTxArgs(ctx, args, s.b)
+//	if err != nil {
+//		return common.Hash{}, err
+//	}
+//
+//	if args.Nonce == nil {
+//		nonce, err := s.b.GetPoolNonce(ctx, args.From)
+//		if err != nil {
+//			return common.Hash{}, err
+//		}
+//		args.Nonce = rpc.NewHexNumber(nonce)
+//	}
+//
+//	var tx *types.Transaction
+//	data := common.FromHex(args.Data)
+//	isPrivate := len(args.PrivateFor) > 0
+//	if isPrivate {
+//		glog.V(logger.Info).Infof("Sending private transaction data %x ", data)
+//		args.To, data, err = private.P.Send(args.To, data, args.PrivateFrom, args.PrivateFor)
+//		if err != nil {
+//			return common.Hash{}, err
+//		}
+//	}
+//	if args.To == nil {
+//		tx = types.NewContractCreation(args.Nonce.Uint64(), args.Value.BigInt(), args.Gas.BigInt(), nil, data)
+//	} else {
+//		tx = types.NewTransaction(args.Nonce.Uint64(), *args.To, args.Value.BigInt(), args.Gas.BigInt(), nil, data)
+//	}
+//
+//	signature, err := s.am.SignWithPassphrase(args.From, passwd, tx.SigHash().Bytes())
+//	if err != nil {
+//		return common.Hash{}, err
+//	}
+//
+//	return submitTransaction(ctx, s.b, tx, signature, isPrivate)
+//}
 
 // Please note: This is a temporary integration to improve performance in high-latency
 // environments when sending many private transactions. It will be removed at a later
@@ -346,7 +346,7 @@ func (a *Async) send(ctx context.Context, s *PublicTransactionPoolAPI, asyncArgs
 		res.Error = err.Error()
 		return
 	}
-	b, err := private.P.Send(*asyncArgs.To, common.FromHex(args.Data), args.PrivateFrom, args.PrivateFor)
+	_, b, err := private.P.Send(asyncArgs.To, common.FromHex(args.Data), args.PrivateFrom, args.PrivateFor)
 	if err != nil {
 		glog.V(logger.Info).Infof("Error running Private.P.Send: %v", err)
 		res.Error = err.Error()
@@ -471,9 +471,9 @@ func (s *PrivateAccountAPI) EcRecover(ctx context.Context, message string, signa
 
 // SignAndSendTransaction was renamed to SendTransaction. This method is deprecated
 // and will be removed in the future. It primary goal is to give clients time to update.
-func (s *PrivateAccountAPI) SignAndSendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
-	return s.SendTransaction(ctx, args, passwd)
-}
+//func (s *PrivateAccountAPI) SignAndSendTransaction(ctx context.Context, args SendTxArgs, passwd string) (common.Hash, error) {
+//	return s.SendTransaction(ctx, args, passwd)
+//}
 
 // PublicBlockChainAPI provides an API to access the Ethereum blockchain.
 // It offers only methods that operate on public data that is freely available to anyone.
@@ -1086,22 +1086,27 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, 
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *PublicTransactionPoolAPI) GetTransactionReceipt(txHash common.Hash) (map[string]interface{}, error) {
-	receipt := core.GetReceipt(s.b.ChainDb(), txHash)
-	if receipt == nil {
+
+	tx, _, err := getTransaction(s.b.ChainDb(), s.b, txHash)
+
+	if err != nil {
 		glog.V(logger.Debug).Infof("receipt not found for transaction %s", txHash.Hex())
 		return nil, nil
 	}
 
-	tx, _, err := getTransaction(s.b.ChainDb(), s.b, txHash)
-	if err != nil {
-		glog.V(logger.Debug).Infof("%v\n", err)
-		return nil, nil
+	realTo := tx.To()
+	var receipt *types.Receipt
+	if tx.IsPrivate() {
+		// try to reconstruct the private receipt
+		glog.V(logger.Debug).Infof("calling out to constellation for receipt info -- %s", txHash.Hex())
+		receipt = core.GetPrivateReceipt(s.b.ChainDb(), txHash)
+		if receipt != nil {
+			realTo, _, _ = private.P.Receive(tx.Data())
+		}
 	}
-
-	glog.V(logger.Debug).Infof("GTR -- REACHING OUT TO CONSTELLATION")
-	realTo, realData, err := private.P.Receive(tx.Data())
-	if err != nil && realTo != nil {
-		glog.V(logger.Debug).Infof("GTR -- Constellation responded -- realTo %x realData %x", realTo, realData)
+	if receipt == nil {
+		// failed to find private receipt, returning public receipt
+		receipt = core.GetPublicReceipt(s.b.ChainDb(), txHash)
 	}
 
 	txBlock, blockIndex, index, err := getTransactionBlockData(s.b.ChainDb(), txHash)
@@ -1123,7 +1128,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(txHash common.Hash) (ma
 		"transactionHash":   txHash,
 		"transactionIndex":  rpc.NewHexNumber(index),
 		"from":              from,
-		"to":                tx.To(),
+		"to":                realTo,
 		"gasUsed":           rpc.NewHexNumber(receipt.GasUsed),
 		"cumulativeGasUsed": rpc.NewHexNumber(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
@@ -1196,6 +1201,8 @@ func submitTransaction(ctx context.Context, b Backend, tx *types.Transaction, si
 		return common.Hash{}, err
 	}
 
+	glog.V(logger.Info).Infof("Created transaction %v ", signedTx)
+
 	if signedTx.To() == nil {
 		from, _ := signedTx.From()
 		addr := crypto.CreateAddress(from, signedTx.Nonce())
@@ -1230,10 +1237,9 @@ func (s *PublicTransactionPoolAPI) SendTransaction(ctx context.Context, args Sen
 	data := common.FromHex(args.Data)
 	isPrivate := len(args.PrivateFor) > 0
 	if isPrivate {
-
-		data, err = private.P.Send(*args.To, data, args.PrivateFrom, args.PrivateFor)
-		private.P.MaskTo(&args.To)
+		args.To, data, err = private.P.Send(args.To, data, args.PrivateFrom, args.PrivateFor)
 		if err != nil {
+			glog.V(logger.Info).Infof("Constellation failed in Send %s", err)
 			return common.Hash{}, err
 		}
 	}

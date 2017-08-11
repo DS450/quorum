@@ -44,11 +44,11 @@ var (
 	blockReceiptsPrefix        = []byte("r")  // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 	privateRootPrefix          = []byte("P")  // rootPrefix + block public root -> hash
 	privateblockReceiptsPrefix = []byte("Pr") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
-	privateReceiptPrefix       = []byte("Prs")
+	PrivateReceiptPrefix       = []byte("Prs")
 	privateBloomPrefix         = []byte("Pb")
 
 	txMetaSuffix   = []byte{0x01}
-	receiptsPrefix = []byte("receipts-")
+	ReceiptsPrefix = []byte("receipts-")
 
 	mipmapPre    = []byte("mipmap-log-bloom-")
 	MIPMapLevels = []uint64{1000000, 500000, 100000, 50000, 1000}
@@ -294,8 +294,16 @@ func GetTransaction(db ethdb.Database, hash common.Hash) (*types.Transaction, co
 }
 
 // GetReceipt returns a receipt by hash
-func GetReceipt(db ethdb.Database, txHash common.Hash) *types.Receipt {
-	data, _ := db.Get(append(receiptsPrefix, txHash[:]...))
+func GetPrivateReceipt(db ethdb.Database, txHash common.Hash) *types.Receipt {
+	return GetReceipt(db, txHash, PrivateReceiptPrefix)
+}
+
+func GetPublicReceipt(db ethdb.Database, txHash common.Hash) *types.Receipt {
+	return GetReceipt(db, txHash, ReceiptsPrefix)
+}
+
+func GetReceipt(db ethdb.Database, txHash common.Hash, prefix []byte) *types.Receipt {
+	data, _ := db.Get(append(prefix, txHash[:]...))
 	if len(data) == 0 {
 		return nil
 	}
@@ -467,8 +475,16 @@ func WriteTransactions(db ethdb.Database, block *types.Block) error {
 	return nil
 }
 
+func WritePublicReceipts(db ethdb.Database, receipts types.Receipts) error {
+	return WriteReceipts(db, receipts, ReceiptsPrefix)
+}
+
+func WritePrivateReceipts(db ethdb.Database, receipts types.Receipts) error {
+	return WriteReceipts(db, receipts, PrivateReceiptPrefix)
+}
+
 // WriteReceipts stores a batch of transaction receipts into the database.
-func WriteReceipts(db ethdb.Database, receipts types.Receipts) error {
+func WriteReceipts(db ethdb.Database, receipts types.Receipts, prefix []byte) error {
 	batch := db.NewBatch()
 
 	// Iterate over all the receipts and queue them for database injection
@@ -478,7 +494,7 @@ func WriteReceipts(db ethdb.Database, receipts types.Receipts) error {
 		if err != nil {
 			return err
 		}
-		if err := batch.Put(append(receiptsPrefix, receipt.TxHash.Bytes()...), data); err != nil {
+		if err := batch.Put(append(prefix, receipt.TxHash.Bytes()...), data); err != nil {
 			return err
 		}
 	}
@@ -531,7 +547,7 @@ func DeleteTransaction(db ethdb.Database, hash common.Hash) {
 
 // DeleteReceipt removes all receipt data associated with a transaction hash.
 func DeleteReceipt(db ethdb.Database, hash common.Hash) {
-	db.Delete(append(receiptsPrefix, hash.Bytes()...))
+	db.Delete(append(ReceiptsPrefix, hash.Bytes()...))
 }
 
 // [deprecated by the header/block split, remove eventually]
