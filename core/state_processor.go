@@ -70,17 +70,8 @@ func (p *StateProcessor) Process(block *types.Block, publicState, privateState *
 	for i, tx := range block.Transactions() {
 
 		publicState.StartRecord(tx.Hash(), block.Hash(), i)
-		// -- call constallation
-		// make frankenstien privateTransaction ptx == the original web3 tx
-		// we need to recreate the original transaction object at this point.
-
-		// CALL CONSTELLATION FOR HASH
 		privateState.StartRecord(tx.Hash(), block.Hash(), i)
 
-		// not ask if public or private during anything called in ApplyTransaction, then
-		// -- we don't need to worry about constellation
-		// -- we can make the public on here
-		// --
 		publicReceipt, privateReceipt, _, err := ApplyTransaction(p.config, p.bc, gp, publicState, privateState, header, tx, totalUsedGas, cfg)
 		if err != nil {
 			return nil, nil, nil, totalUsedGas, err
