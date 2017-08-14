@@ -995,8 +995,9 @@ func (self *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 			if err := WritePrivateReceipts(self.chainDb, privateReceipts); err != nil {
 				return i, err
 			}
+			allReceipts := append(publicReceipts, privateReceipts...)
 			// Write map map bloom filters
-			if err := WriteMipmapBloom(self.chainDb, block.NumberU64(), publicReceipts); err != nil {
+			if err := WriteMipmapBloom(self.chainDb, block.NumberU64(), allReceipts); err != nil {
 				return i, err
 			}
 			// Write private block bloom
