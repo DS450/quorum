@@ -48,8 +48,8 @@ func (g *Constellation) Send(toField *common.Address, data []byte, from string, 
 
 func (g *Constellation) ParseConstellationPayload(dataWithTo []byte) (*common.Address, []byte, error) {
 	if len(dataWithTo) < 20 {
-		glog.V(logger.Info).Infof("Received malformed payload from constellation -- %x", dataWithTo)
-		return nil, nil, fmt.Errorf("malformed constellation payload")
+		glog.V(logger.Info).Infof("Didn't find a valid payload in constellation, indicating this transaction is not for us.", dataWithTo)
+		return nil, nil, fmt.Errorf("Malformed constellation payload")
 
 	}
 	realTo := common.BytesToAddress(dataWithTo[:20])
@@ -74,10 +74,10 @@ func (g *Constellation) Receive(data []byte) (*common.Address, []byte, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		if realTo != nil {
-			glog.V(logger.Info).Infof("Received contract creation payload from constellation -- %x", realData)
+		if realTo == nil {
+			glog.V(logger.Info).Infof("Received private contract creation payload from cache -- %x", realData)
 		} else {
-			glog.V(logger.Info).Infof("Received payload from constellation %x with recipient %x", realTo, realData)
+			glog.V(logger.Info).Infof("Received private payload from cache to address %x with payload %x", realTo, realData)
 		}
 		return realTo, realData, nil
 	}
@@ -94,7 +94,7 @@ func (g *Constellation) Receive(data []byte) (*common.Address, []byte, error) {
 	if realTo != nil {
 		glog.V(logger.Info).Infof("Received contract creation payload from constellation -- %x", realData)
 	} else {
-		glog.V(logger.Info).Infof("Received payload from constellation %x with recipient %x", realTo, realData)
+		glog.V(logger.Info).Infof("Received payload from constellation to address %x with data %x", realTo, realData)
 	}
 	return realTo, realData, nil
 }

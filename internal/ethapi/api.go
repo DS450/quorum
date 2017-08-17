@@ -1104,8 +1104,12 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(txHash common.Hash) (ma
 		}
 	}
 	if receipt == nil {
-		glog.V(logger.Debug).Infof("found receipt for a public transaction -- %s", txHash.Hex())
+		glog.V(logger.Debug).Infof("Didn't find receipt for a private transaction with hash %s, looking for public transaction.", txHash.Hex())
 		receipt = core.GetPublicReceipt(s.b.ChainDb(), txHash)
+	}
+
+	if receipt == nil {
+		return nil, fmt.Errorf("Couldn't find public or private transaction with hash %s", txHash.Hex())
 	}
 
 	txBlock, blockIndex, index, err := getTransactionBlockData(s.b.ChainDb(), txHash)
