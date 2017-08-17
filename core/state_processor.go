@@ -24,6 +24,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/logger"
+	"github.com/ethereum/go-ethereum/logger/glog"
 	"github.com/ethereum/go-ethereum/private"
 )
 
@@ -126,18 +128,21 @@ func ApplyTransaction(config *ChainConfig, bc *BlockChain, gp *GasPool, publicSt
 
 	var privateReceipt *types.Receipt
 	if tx.IsPrivate() {
-		recipient, _, _ := private.P.Receive(tx.Data())
-		privateReceipt = types.NewReceipt(privateState.IntermediateRoot().Bytes(), usedGas)
-		privateReceipt.TxHash = tx.Hash()
-		privateReceipt.GasUsed = new(big.Int).Set(gas)
-		if recipient == nil {
-			from, _ := tx.From()
-			privateReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
-		}
+		recipient, _, err := private.P.Receive(tx.Data())
+		if err == nil {
+			glog.V(logger.Debug).Infof("Creating a private transaction receipt %x : ", tx.Hash())
+			privateReceipt = types.NewReceipt(privateState.IntermediateRoot().Bytes(), usedGas)
+			privateReceipt.TxHash = tx.Hash()
+			privateReceipt.GasUsed = new(big.Int).Set(gas)
+			if recipient == nil {
+				from, _ := tx.From()
+				privateReceipt.ContractAddress = crypto.CreateAddress(from, tx.Nonce())
+			}
 
-		logs := privateState.GetLogs(tx.Hash())
-		privateReceipt.Logs = logs
-		privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
+			logs := privateState.GetLogs(tx.Hash())
+			privateReceipt.Logs = logs
+			privateReceipt.Bloom = types.CreateBloom(types.Receipts{privateReceipt})
+		}
 	}
 
 	return publicReceipt, privateReceipt, gas, err
