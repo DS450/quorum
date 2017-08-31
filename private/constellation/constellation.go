@@ -91,7 +91,7 @@ func (g *Constellation) Receive(data []byte) (*common.Address, []byte, error) {
 		return nil, nil, err
 	}
 	g.c.Set(dataStr, dataWithTo, cache.DefaultExpiration)
-	if realTo != nil {
+	if realTo == nil {
 		glog.V(logger.Info).Infof("Received contract creation payload from constellation -- %x", realData)
 	} else {
 		glog.V(logger.Info).Infof("Received payload from constellation to address %x with data %x", realTo, realData)
